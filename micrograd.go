@@ -80,9 +80,20 @@ func main() {
 
 	x1w1 := x1.Mul(w1).L("x1w1")
 	x2w2 := x2.Mul(w2).L("x2w2")
-	x1w1x2w2 := x1w1.Add(x2w2).L("x1w1x2w2")
+	x1w1x2w2 := x1w1.Add(x2w2).L("x1w1 * 2w2")
 	n := x1w1x2w2.Add(bias).L("n")
-	o := n.Tanh().L("o")
+	o := n.Tanh().L("o").G(1.0)
+
+	// Manual steps of backprop
+	// o.back()
+	// n.back()
+	// x1w1x2w2.back()
+	// x1w1.back()
+	// x2w2.back()
+
+	// Automatic backprop
+	o.ZeroGrad()
+	o.Backward()
 
 	trace = TraceFromValue(o)
 	trace.DrawGraph(g2.Graph)

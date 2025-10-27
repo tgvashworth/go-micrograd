@@ -8,11 +8,12 @@ import (
 
 type Value struct {
 	id    uint64
-	Data  float64
-	Grad  float64
-	Prev  []*Value
-	Op    string
 	label string
+
+	Data float64
+	Grad float64
+	Prev []*Value
+	Op   string
 }
 
 func (v *Value) GraphLabel() string {
@@ -84,4 +85,70 @@ func (v *Value) Tanh() *Value {
 	x := v.Data
 	t := (math.Exp(2*x) - 1) / (math.Exp(2*x) + 1)
 	return NewValueFrom(t, []*Value{v}, "tanh")
+}
+
+// BACKPROP
+
+func (v *Value) back() {
+	// Rename v to out to help with readability
+	out := v
+	switch out.Op {
+	case "+":
+		a, b := out.Prev[0], out.Prev[1]
+		a.Grad += 1.0 * out.Grad
+		b.Grad += 1.0 * out.Grad
+	case "*":
+		a, b := out.Prev[0], out.Prev[1]
+		a.Grad += b.Data * out.Grad
+		b.Grad += a.Data * out.Grad
+	case "tanh":
+		p := out.Prev[0]
+		t := out.Data
+		p.Grad += (1 - t*t) * out.Grad
+	default:
+		// No operation, do nothing
+	}
+}
+
+func (v *Value) Backward() {
+	visited := make(map[uint64]bool)
+	var buildTopo func(n *Value)
+	var topo []*Value
+
+	buildTopo = func(n *Value) {
+		if !visited[n.id] {
+			visited[n.id] = true
+			for _, p := range n.Prev {
+				buildTopo(p)
+			}
+			topo = append(topo, n)
+		}
+	}
+
+	buildTopo(v)
+
+	// Initialize the gradient of the output node
+	v.Grad = 1.0
+
+	// Backpropagate in reverse topological order
+	for i := len(topo) - 1; i >= 0; i-- {
+		topo[i].back()
+	}
+}
+
+func (v *Value) ZeroGrad() {
+	visited := make(map[uint64]bool)
+	var zeroGradRec func(n *Value)
+
+	zeroGradRec = func(n *Value) {
+		if !visited[n.id] {
+			visited[n.id] = true
+			n.Grad = 0.0
+			for _, p := range n.Prev {
+				zeroGradRec(p)
+			}
+		}
+	}
+
+	zeroGradRec(v)
 }
