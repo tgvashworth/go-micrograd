@@ -31,6 +31,14 @@ func NewValueFrom(data float64, prev []*Value, op string) *Value {
 	return &Value{id: id, Data: data, Prev: prev, Op: op}
 }
 
+func Vs(vals ...float64) []*Value {
+	vlist := make([]*Value, len(vals))
+	for i, v := range vals {
+		vlist[i] = NewValue(v)
+	}
+	return vlist
+}
+
 // DATA
 
 func (v *Value) WithGrad(g float64) *Value {
@@ -67,6 +75,7 @@ func (v *Value) ID() string {
 	return fmt.Sprintf("%d", v.id)
 }
 
+// This should not use v *Value! Turst Go's plan.
 func (v Value) String() string {
 	return fmt.Sprintf("Value(%.4f)", v.Data)
 }
@@ -77,6 +86,10 @@ func (v *Value) Add(other *Value) *Value {
 	return NewValueFrom(v.Data+other.Data, []*Value{v, other}, "+")
 }
 
+func (v *Value) Sub(other *Value) *Value {
+	return NewValueFrom(v.Data+(-other.Data), []*Value{v, other}, "+")
+}
+
 func (v *Value) Mul(other *Value) *Value {
 	return NewValueFrom(v.Data*other.Data, []*Value{v, other}, "*")
 }
@@ -85,6 +98,11 @@ func (v *Value) Tanh() *Value {
 	x := v.Data
 	t := (math.Exp(2*x) - 1) / (math.Exp(2*x) + 1)
 	return NewValueFrom(t, []*Value{v}, "tanh")
+}
+
+func (v *Value) Pow(other float64) *Value {
+	exp := int(other)
+	return NewValueFrom(math.Pow(v.Data, float64(exp)), []*Value{v}, fmt.Sprintf("**%d", int(exp)))
 }
 
 // BACKPROP
@@ -105,6 +123,10 @@ func (v *Value) back() {
 		p := out.Prev[0]
 		t := out.Data
 		p.Grad += (1 - t*t) * out.Grad
+	case "**2":
+		p := out.Prev[0]
+		// self.grad += (other * self.data**(other-1)) * out.grad
+		p.Grad += (2 * p.Data) * out.Grad
 	default:
 		// No operation, do nothing
 	}
